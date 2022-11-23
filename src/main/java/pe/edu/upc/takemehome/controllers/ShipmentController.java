@@ -9,10 +9,13 @@ import pe.edu.upc.takemehome.entities.User;
 import pe.edu.upc.takemehome.entities.Shipment;
 import pe.edu.upc.takemehome.entities.State;
 import pe.edu.upc.takemehome.exceptions.ResourceNotFoundException;
+import pe.edu.upc.takemehome.exporters.ShipmentsExcel;
 import pe.edu.upc.takemehome.repositories.OrderRepository;
 import pe.edu.upc.takemehome.repositories.UserRepository;
 import pe.edu.upc.takemehome.repositories.ShipmentRepository;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 @CrossOrigin(origins = "http://localhost:4200")
@@ -141,6 +144,38 @@ public class ShipmentController {
 
         return new ResponseEntity<List<Shipment>>(filteredShipment, HttpStatus.OK);
     }
+    @GetMapping ("/shipments/export/excel/{id}")
+    public void exportToExcel(HttpServletResponse response,@PathVariable("id") Long userid) throws IOException{
+        response.setContentType("application/octet-stream");
+        String headerKey ="Content-Disposition";
+        String headerValue = "attachment; filename=shipment_report";
+        response.setHeader(headerKey,headerValue);
+        List<Shipment> shipments;
+        List<Shipment> filteredShipment= new ArrayList<Shipment>();
+        shipments = shipmentRepository.findAll();
+        for (Shipment s : shipments) {
+            if(s.getUser().getId()==userid ){
+                if(s.getState()==State.Shipping || s.getState()==State.Delivered) {
+                    s.getUser().setShipments(null);
+                    s.getUser().setOrders(null);
+                    s.getUser().setCommentsReceived(null);
+                    s.getUser().setCommentsSend(null);
+                    s.getUser().setNotifications(null);
+                    s.getOrder().setShipment(null);
+                    s.getUser().setCommentsSupport(null);
+                    s.getOrder().getUser().setOrders(null);
+                    s.getOrder().getUser().setShipments(null);
+                    s.getOrder().getUser().setCommentsReceived(null);
+                    s.getOrder().getUser().setCommentsSend(null);
+                    s.getOrder().getUser().setNotifications(null);
+                    s.getOrder().getUser().setCommentsSupport(null);
+                    filteredShipment.add(s);
+                }
+            }
+        }
+        ShipmentsExcel shipmentsExcel = new ShipmentsExcel(filteredShipment);
+        shipmentsExcel.export(response);
+    }
     @GetMapping("/shipments/orders")
     public ResponseEntity<List<Shipment>> getAllShipmentsWithOrders() {
         List<Shipment> shipments = shipmentRepository.findAll();
@@ -186,6 +221,11 @@ public class ShipmentController {
 
         return new ResponseEntity<Shipment>(shipmentFound, HttpStatus.OK);
     }
+
+
+
+
+
 
     @PostMapping("/shipments/{userid}/orders/{oid}")
     public ResponseEntity<Shipment> createShipment(@RequestBody Shipment shipment,  @PathVariable("userid") Long userid, @PathVariable("oid") Long orderid){

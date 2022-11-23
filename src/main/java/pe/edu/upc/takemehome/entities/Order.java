@@ -50,7 +50,6 @@ public class Order {
         this.priceProduct = priceProduct;
         this.urlProduct = urlProduct;
         this.dimensionsProduct = dimensionsProduct;
-
         this.user=user;
     }
 

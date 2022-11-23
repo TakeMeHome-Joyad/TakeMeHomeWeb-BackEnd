@@ -10,11 +10,15 @@ import pe.edu.upc.takemehome.entities.Shipment;
 import pe.edu.upc.takemehome.entities.State;
 import pe.edu.upc.takemehome.entities.User;
 import pe.edu.upc.takemehome.exceptions.ResourceNotFoundException;
+import pe.edu.upc.takemehome.exporters.OrdersExcel;
+import pe.edu.upc.takemehome.exporters.ShipmentsExcel;
 import pe.edu.upc.takemehome.repositories.OrderRepository;
 import pe.edu.upc.takemehome.repositories.ShipmentRepository;
 import pe.edu.upc.takemehome.repositories.UserRepository;
 //import java.text.ParseException;
 //import java.text.SimpleDateFormat;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 @CrossOrigin(origins = "http://localhost:4200")
@@ -66,9 +70,8 @@ public class OrderController {
 
         return new ResponseEntity<List<Order>>(filteredOrders, HttpStatus.OK);
     }
-    @GetMapping("/orders/users/{id}/shipments/pay")
+    @GetMapping("/orders/users/{id}/shipments/pay")//con este filtro porfa pero que tenga la forma del otro
     public ResponseEntity<List<Order>> getShipmentsPay(@PathVariable("id") Long id){
-
         User user=userRepository.findById(id).
                 orElseThrow(()->new ResourceNotFoundException("Not found Owner with id="+id));
         List<Order> filteredOrders= new ArrayList<Order>();
@@ -93,6 +96,40 @@ public class OrderController {
         }
         user.setOrders(null);
         return new ResponseEntity<List<Order>>(filteredOrders,HttpStatus.OK);
+    }
+
+    @GetMapping("/orders/export/excel/{id}")//con este filtro porfa pero que tenga la forma del otro
+    public void exportToExcel(HttpServletResponse response, @PathVariable("id") Long id) throws IOException {
+        response.setContentType("application/octet-stream");
+        String headerKey ="Content-Disposition";
+        String headerValue = "attachment; filename=order_report";
+        response.setHeader(headerKey,headerValue);
+        List<User> users;
+        User user=userRepository.findById(id).
+                orElseThrow(()->new ResourceNotFoundException("Not found Owner with id="+id));
+        List<Order> filteredOrders= new ArrayList<Order>();
+        users=userRepository.findAll();
+        for (Order o : user.getOrders()) {
+            if(o.getShipment()!=null){
+                if(o.getShipment().getState()==State.Shipping || o.getShipment().getState()==State.Delivered) {
+                    o.getUser().setOrders(null);
+                    o.getUser().setShipments(null);
+                    o.getUser().setCommentsSend(null);
+                    o.getUser().setCommentsReceived(null);
+                    o.getUser().setNotifications(null);
+                    o.getUser().setCommentsSupport(null);
+                    o.getShipment().getUser().setShipments(null);
+                    o.getShipment().getUser().setOrders(null);
+                    o.getShipment().getUser().setCommentsSend(null);
+                    o.getShipment().getUser().setCommentsReceived(null);
+                    o.getShipment().getUser().setNotifications(null);
+                    o.getShipment().setOrder(null);
+                    filteredOrders.add(o);
+                }
+            }
+        }
+        OrdersExcel ordersExcel = new OrdersExcel(filteredOrders);
+        ordersExcel.export(response);
     }
     @GetMapping("/orders/users/{id}/shipments")
     public ResponseEntity<List<Order>> getUserByIdWithOrderFilterShipments(@PathVariable("id") Long id){
